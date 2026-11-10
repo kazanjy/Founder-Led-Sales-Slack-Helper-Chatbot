@@ -1,0 +1,1002 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import SalesNavBar from "@/components/SalesNavBar";
+import ChatWithAssessmentModal from "@/components/ChatWithAssessmentModal";
+import SyncReviewOverlay from "@/components/SyncReviewOverlay";
+
+interface Question {
+  id: string;
+  category: string;
+  globalOrder: number;
+  question: string;
+  latestAnswer: { answer: string; answeredAt: string } | null;
+}
+
+interface CategoryGroup {
+  category: string;
+  questions: Question[];
+}
+
+// Fun loading messages for the submission overlay
+const LOADING_MESSAGES = [
+  "Reticulating splines",
+  "Confabulating insights",
+  "Synthesizing brilliance",
+  "Percolating recommendations",
+  "Cogitating strategies",
+  "Calibrating GTM engines",
+  "Distilling wisdom",
+  "Harmonizing data points",
+  "Triangulating success vectors",
+  "Crystallizing opportunities",
+  "Marinating in your answers",
+  "Consulting the sales oracles",
+  "Aligning the revenue stars",
+  "Brewing strategic potions",
+  "Decoding founder magic",
+];
+
+// Wrapper component to handle Suspense for useSearchParams
+export default function BulkAssessmentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600 dark:text-gray-300">Loading assessment...</p>
+        </div>
+      </div>
+    }>
+      <BulkAssessmentContent />
+    </Suspense>
+  );
+}
+
+function BulkAssessmentContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode") === "update" ? "update" : "new";
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [prefilling, setPrefilling] = useState(false);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
+  const [prefillSuccess, setPrefillSuccess] = useState<string | null>(null);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [grouped, setGrouped] = useState<CategoryGroup[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [priorAnswers, setPriorAnswers] = useState<Record<string, { answer: string; answeredAt: string } | null>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isHeaderSticky, setIsHeaderSticky] = useState(false);
+  const [latestAssessment, setLatestAssessment] = useState<{
+    id: string;
+    completedAt: string;
+    conversationId: string | null;
+  } | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncData, setSyncData] = useState<any>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Set browser tab title based on mode
+  useEffect(() => {
+    document.title = mode === "update"
+      ? "Update GTM Assessment - Mikey"
+      : "GTM Maturity Assessment - Mikey";
+  }, [mode]);
+
+  // Cycle through loading messages when submitting
+  useEffect(() => {
+    if (!submitting) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [submitting]);
+
+  // Handle sticky header
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        setIsHeaderSticky(window.scrollY > 100);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Load questions on mount
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Check auth
+        const authRes = await fetch("/api/auth/me");
+        const authData = await authRes.json();
+        if (!authData.user) {
+          router.push("/?error=not_logged_in");
+          return;
+        }
+
+        // Load questions
+        const response = await fetch("/api/maturity/questions");
+        if (!response.ok) throw new Error("Failed to load questions");
+        const data = await response.json();
+        setQuestions(data.questions);
+        setGrouped(data.grouped);
+
+        // Fetch assessment progress to know if there's a completed assessment
+        try {
+          const progressRes = await fetch("/api/maturity/progress");
+          if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            if (progressData.latestAssessment) {
+              setLatestAssessment(progressData.latestAssessment);
+            }
+          }
+        } catch {
+          // Non-critical, just won't show nav CTAs
+        }
+
+        // Store prior answers and initialize editable answers
+        const initialAnswers: Record<string, string> = {};
+        const priorAnswersMap: Record<string, { answer: string; answeredAt: string } | null> = {};
+
+        data.questions.forEach((q: Question) => {
+          priorAnswersMap[q.id] = q.latestAnswer;
+
+          if (mode === "update") {
+            // In update mode, start with empty textareas
+            initialAnswers[q.id] = "";
+          } else {
+            // In new mode, pre-fill with existing answers (for continuing in-progress)
+            initialAnswers[q.id] = q.latestAnswer?.answer || "";
+          }
+        });
+
+        setPriorAnswers(priorAnswersMap);
+        setAnswers(initialAnswers);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+
+    loadData();
+  }, [router]);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleAnswerChange = useCallback((questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    setHasUnsavedChanges(true);
+
+    // Auto-save after 2 seconds of no typing (only if there's content)
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    if (value.trim()) {
+      saveTimeoutRef.current = setTimeout(() => {
+        handleSaveAnswer(questionId, value);
+      }, 2000);
+    }
+  }, []);
+
+  const handleDuplicatePriorAnswer = useCallback((questionId: string) => {
+    const prior = priorAnswers[questionId];
+    if (prior) {
+      setAnswers((prev) => ({ ...prev, [questionId]: prior.answer }));
+      setHasUnsavedChanges(true);
+    }
+  }, [priorAnswers]);
+
+  const handleSaveAnswer = async (questionId: string, value: string) => {
+    if (!value.trim()) return;
+
+    try {
+      const response = await fetch(`/api/maturity/answers/${questionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: value.trim() }),
+      });
+
+      if (response.ok) {
+        setLastSaved(new Date());
+      }
+    } catch (error) {
+      console.error("Error saving answer:", error);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    try {
+      // In update mode: save new answers, or use prior answers if empty
+      // In new mode: save all answers that have content
+      const savePromises: Promise<Response>[] = [];
+
+      Object.entries(answers).forEach(([questionId, value]) => {
+        const answerToSave = value.trim();
+
+        if (answerToSave) {
+          // Save the new answer
+          savePromises.push(
+            fetch(`/api/maturity/answers/${questionId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer: answerToSave }),
+            })
+          );
+        } else if (mode === "update" && priorAnswers[questionId]) {
+          // In update mode with empty new answer, keep the prior answer (re-save it)
+          savePromises.push(
+            fetch(`/api/maturity/answers/${questionId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer: priorAnswers[questionId]!.answer }),
+            })
+          );
+        }
+      });
+
+      await Promise.all(savePromises);
+      setHasUnsavedChanges(false);
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error("Error saving answers:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const processPDFFile = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setPrefillError("Please upload a PDF file.");
+      return;
+    }
+
+    setPrefilling(true);
+    setPrefillError(null);
+    setPrefillSuccess(null);
+
+    try {
+      // Read file as base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch("/api/maturity/prefill-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfBase64: base64, fileName: file.name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPrefillError(data.error || "Failed to parse PDF.");
+        return;
+      }
+
+      // Fill in the answers
+      setAnswers((prev) => {
+        const updated = { ...prev };
+        for (const [questionId, answer] of Object.entries(data.answers as Record<string, string>)) {
+          if (answer) {
+            updated[questionId] = answer;
+          }
+        }
+        return updated;
+      });
+
+      setHasUnsavedChanges(true);
+      setPrefillSuccess(`Filled ${data.filledCount} of ${data.totalQuestions} questions from PDF. Review and edit as needed.`);
+    } catch (error) {
+      console.error("Error parsing PDF:", error);
+      setPrefillError("Failed to process PDF. Please try again.");
+    } finally {
+      setPrefilling(false);
+    }
+  };
+
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processPDFFile(file);
+    // Reset the file input so the same file can be re-uploaded
+    e.target.value = "";
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    if (prefilling) return;
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processPDFFile(file);
+  };
+
+  const handleSubmit = async () => {
+    // Save all answers first
+    await handleSaveAll();
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const response = await fetch("/api/maturity/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) throw new Error("Failed to submit assessment");
+
+      const data = await response.json();
+      setHasUnsavedChanges(false);
+      router.push(`/chat/${data.conversation.id}`);
+    } catch (error) {
+      console.error("Error submitting assessment:", error);
+      const isNetworkError = error instanceof TypeError && (error as TypeError).message === "Failed to fetch";
+      setSubmitError(
+        isNetworkError
+          ? "Network connection lost. Please check your internet and try again."
+          : "Something went wrong submitting your assessment. Please try again."
+      );
+      setSubmitting(false);
+    }
+  };
+
+  const handleChatWithAssessment = async (userPrompt: string) => {
+    setStartingChat(true);
+    try {
+      const res = await fetch("/api/maturity/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt }),
+      });
+      const data = await res.json();
+      if (res.ok && data.conversationId) {
+        setShowChatModal(false);
+        router.push(`/chat/${data.conversationId}`);
+      }
+    } catch (error) {
+      console.error("Error starting chat with assessment:", error);
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
+  const handleSyncToReadiness = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await fetch("/api/sales-readiness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "assessment" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncData(data);
+        setShowSyncOverlay(true);
+      } else {
+        console.error("Sync failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Error syncing:", error);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean) => {
+    if (!syncData) return;
+
+    // Apply selected item changes
+    const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
+      selectedItemIds.includes(c.itemId)
+    );
+
+    await Promise.all(
+      changes.map((change: { itemId: string; proposedStatus: string; evidenceText: string }) =>
+        fetch(`/api/sales-readiness/${change.itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: change.proposedStatus,
+            evidenceUrl: change.evidenceText,
+          }),
+        })
+      )
+    );
+
+    // Apply stage if accepted
+    if (acceptStage && syncData.recommendedStage) {
+      await fetch("/api/coaching/maturity-stage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStage: (syncData.recommendedStage as { stage: string }).stage }),
+      });
+    }
+
+    // Save sync history
+    await fetch("/api/sales-readiness/sync-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "assessment",
+        sourceContent: syncData.sourceContent || "",
+        analysisResult: {
+          proposedChanges: syncData.proposedChanges,
+          recommendedStage: syncData.recommendedStage,
+        },
+        acceptedItemIds: selectedItemIds,
+        stageAccepted: acceptStage && !!syncData.recommendedStage,
+        totalProposed: syncData.proposedChanges.length,
+        totalAccepted: selectedItemIds.length,
+      }),
+    }).catch(() => {});
+
+    setShowSyncOverlay(false);
+    setSyncData(null);
+  };
+
+  // Calculate progress
+  // In update mode, count both new answers AND prior answers (that will be kept)
+  const getEffectiveAnswerCount = () => {
+    let count = 0;
+    questions.forEach((q) => {
+      const newAnswer = answers[q.id]?.trim();
+      const hasPrior = priorAnswers[q.id] !== null;
+
+      if (newAnswer) {
+        count++;
+      } else if (mode === "update" && hasPrior) {
+        // In update mode, prior answers count as answered (will be kept)
+        count++;
+      }
+    });
+    return count;
+  };
+
+  const answeredCount = mode === "update"
+    ? getEffectiveAnswerCount()
+    : Object.values(answers).filter((a) => a.trim()).length;
+  const totalQuestions = questions.length;
+  const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600 dark:text-gray-300">Loading assessment...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <SalesNavBar />
+      {/* Submission Loading Overlay */}
+      {submitting && (
+        <div className="fixed inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 z-50 flex flex-col items-center justify-center text-white">
+          <div className="flex gap-3 text-5xl mb-8">
+            {["🌊", "🌊", "🌊"].map((emoji, i) => (
+              <span
+                key={i}
+                className="animate-bounce"
+                style={{ animationDelay: `${i * 0.2}s`, animationDuration: "1s" }}
+              >
+                {emoji}
+              </span>
+            ))}
+          </div>
+
+          <div className="relative w-20 h-20 mb-8">
+            <div className="absolute inset-0 border-4 border-white/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
+            <div className="absolute inset-2 border-4 border-transparent border-t-white/60 rounded-full animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }}></div>
+          </div>
+
+          <h3 className="text-2xl font-bold mb-4 text-center px-6">
+            Submitting Your Assessment
+          </h3>
+
+          <div className="h-8 flex items-center justify-center">
+            <p className="text-lg text-white/90 animate-pulse">
+              {LOADING_MESSAGES[loadingMessageIndex]}...
+            </p>
+          </div>
+
+          <p className="text-sm text-white/60 mt-8">
+            This may take a moment while we analyze your responses
+          </p>
+        </div>
+      )}
+
+      {/* Floating Header */}
+      <div
+        ref={headerRef}
+        className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-200 ${
+          isHeaderSticky ? "fixed top-0 left-0 right-0 z-40 shadow-md" : ""
+        }`}
+      >
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/chat"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </Link>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  {mode === "update" ? "Update GTM Assessment" : "GTM Maturity Assessment"}
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {answeredCount} of {totalQuestions} answered ({progressPercent}%)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Last saved indicator */}
+              {lastSaved && (
+                <span className="text-xs text-gray-400 mr-1">
+                  Saved {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+
+              {/* View Results - show if there's a completed assessment with a conversation */}
+              {latestAssessment?.conversationId && (
+                <Link
+                  href={`/chat/${latestAssessment.conversationId}`}
+                  className="px-3 py-2 text-sm text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Results
+                </Link>
+              )}
+
+              {/* Chat with Assessment - show if there's a completed assessment */}
+              {latestAssessment && (
+                <button
+                  onClick={() => setShowChatModal(true)}
+                  className="px-3 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat
+                </button>
+              )}
+
+              {/* Assessment History */}
+              {latestAssessment && (
+                <Link
+                  href="/maturity-history"
+                  className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  History
+                </Link>
+              )}
+
+              {/* Sync to Readiness Progression */}
+              {latestAssessment && (
+                <button
+                  onClick={handleSyncToReadiness}
+                  disabled={syncLoading}
+                  className="px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium disabled:opacity-50"
+                >
+                  {syncLoading ? (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  Sync to Readiness
+                </button>
+              )}
+
+              {/* Divider when there are nav CTAs */}
+              {latestAssessment && (
+                <div className="h-6 w-px bg-gray-300 mx-1" />
+              )}
+
+              {/* Save for Later button */}
+              <button
+                onClick={handleSaveAll}
+                disabled={saving || submitting}
+                className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2 text-sm"
+              >
+                {saving ? (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                )}
+                Save for Later
+              </button>
+
+              {/* Submit button */}
+              <button
+                onClick={handleSubmit}
+                disabled={saving || submitting || answeredCount === 0}
+                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Get My Recommendations
+              </button>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-3">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-600 to-blue-600 transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Spacer for sticky header */}
+      {isHeaderSticky && <div className="h-32" />}
+
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* PDF Upload Card */}
+        <div
+          className={`mb-8 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed p-6 transition-colors ${
+            isDragging
+              ? "border-purple-500 bg-purple-50"
+              : "border-purple-200"
+          }`}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Import from PDF</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                {isDragging
+                  ? "Drop your PDF here..."
+                  : "Have a completed assessment in Google Docs? Export it as PDF and drag it here or click to upload."}
+              </p>
+
+              {prefillError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {prefillError}
+                </div>
+              )}
+
+              {prefillSuccess && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                  {prefillSuccess}
+                </div>
+              )}
+
+              <input
+                ref={pdfFileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePDFUpload}
+                disabled={prefilling}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => pdfFileInputRef.current?.click()}
+                disabled={prefilling}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  prefilling
+                    ? "bg-purple-100 text-purple-400 cursor-wait"
+                    : "bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg cursor-pointer"
+                }`}
+              >
+                {prefilling ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Parsing PDF...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload PDF
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {grouped.map((category, categoryIndex) => (
+          <div key={category.category} className="mb-12">
+            {/* Category Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                {categoryIndex + 1}
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{category.category}</h2>
+              <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
+                {category.questions.filter((q) => answers[q.id]?.trim()).length} / {category.questions.length} answered
+              </span>
+            </div>
+
+            {/* Questions */}
+            <div className="space-y-6">
+              {category.questions.map((question) => {
+                const newAnswer = answers[question.id]?.trim();
+                const priorAnswer = priorAnswers[question.id];
+                const hasPriorAnswer = priorAnswer !== null;
+
+                // Determine if effectively answered (for styling)
+                const isEffectivelyAnswered = mode === "update"
+                  ? (newAnswer || hasPriorAnswer)
+                  : newAnswer;
+
+                return (
+                  <div
+                    key={question.id}
+                    className={`bg-white dark:bg-gray-800 rounded-xl border-2 transition-colors ${
+                      isEffectivelyAnswered ? "border-green-200" : "border-gray-200 dark:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex flex-col md:flex-row">
+                      {/* Question Side */}
+                      <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
+                        <div className="flex items-start gap-3">
+                          <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
+                            isEffectivelyAnswered ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600 dark:text-gray-300"
+                          }`}>
+                            {question.globalOrder}
+                          </span>
+                          <p className="text-gray-800 dark:text-gray-100 font-medium leading-relaxed">
+                            {question.question}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Answer Side */}
+                      <div className="md:w-3/5 p-5">
+                        {/* Show prior answer in update mode */}
+                        {mode === "update" && hasPriorAnswer && (
+                          <div className="mb-4">
+                            <div className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Your Previous Answer</div>
+                            <div className="p-3 bg-gray-100 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm whitespace-pre-wrap">
+                              {priorAnswer.answer}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              Answered {formatDate(priorAnswer.answeredAt)}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Updated Answer section for update mode */}
+                        {mode === "update" && hasPriorAnswer ? (
+                          <>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Updated Answer <span className="font-normal text-gray-400">(leave empty to keep previous)</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicatePriorAnswer(question.id)}
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Duplicate prior answer
+                              </button>
+                            </div>
+                            <textarea
+                              value={answers[question.id] || ""}
+                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                              placeholder="Enter your updated answer, or leave blank to keep the previous one..."
+                              className="w-full min-h-[100px] p-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <textarea
+                              value={answers[question.id] || ""}
+                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                              placeholder="Enter your answer... (or type 'N/A' if not applicable)"
+                              className="w-full min-h-[100px] p-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
+                            />
+                            {newAnswer && (
+                              <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Answered
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Status indicator for update mode */}
+                        {mode === "update" && hasPriorAnswer && (
+                          <div className="mt-2 flex items-center gap-1 text-xs">
+                            {newAnswer ? (
+                              <span className="text-blue-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Will be updated
+                              </span>
+                            ) : (
+                              <span className="text-green-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Keeping previous answer
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Bottom Submit Section */}
+        <div className="mt-12 mb-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-center text-white">
+          <h3 className="text-2xl font-bold mb-2">Ready to Get Your Recommendations?</h3>
+          <p className="text-purple-100 mb-6">
+            You&apos;ve answered {answeredCount} of {totalQuestions} questions.
+            {answeredCount < totalQuestions && " Answer more for better recommendations!"}
+          </p>
+          {submitError && (
+            <div className="mb-4 mx-auto max-w-md p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
+              {submitError}
+            </div>
+          )}
+          <button
+            onClick={handleSubmit}
+            disabled={saving || submitting || answeredCount === 0}
+            className="px-8 py-4 bg-white dark:bg-gray-800 text-purple-700 rounded-xl hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-lg shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Get My GTM Recommendations
+          </button>
+        </div>
+      </div>
+
+      {/* Chat with Assessment Modal */}
+      <ChatWithAssessmentModal
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onSubmit={handleChatWithAssessment}
+        isLoading={startingChat}
+      />
+
+      {/* Sync Review Overlay */}
+      {syncData && (
+        <SyncReviewOverlay
+          isOpen={showSyncOverlay}
+          onClose={() => { setShowSyncOverlay(false); setSyncData(null); }}
+          source="assessment"
+          proposedChanges={syncData.proposedChanges}
+          recommendedStage={syncData.recommendedStage}
+          onApply={handleApplySync}
+        />
+      )}
+    </div>
+  );
+}

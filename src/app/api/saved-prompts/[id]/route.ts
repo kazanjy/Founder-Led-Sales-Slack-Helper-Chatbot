@@ -44,6 +44,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 /**
  * DELETE /api/saved-prompts/[id] - Delete a saved prompt
+ * If it's a default prompt, add it to the user's dismissed list so it won't reappear
  */
 export async function DELETE(request: Request, { params }: RouteParams) {
   const user = await getCurrentUser();
@@ -61,6 +62,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
   if (!existing) {
     return NextResponse.json({ error: "Prompt not found" }, { status: 404 });
+  }
+
+  // If this is a default prompt, add it to the dismissed list so it won't be re-added
+  if (existing.defaultPromptId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        dismissedDefaultPromptIds: {
+          push: existing.defaultPromptId,
+        },
+      },
+    });
   }
 
   await prisma.savedPrompt.delete({

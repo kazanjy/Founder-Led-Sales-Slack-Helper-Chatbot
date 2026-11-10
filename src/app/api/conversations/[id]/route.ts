@@ -27,6 +27,9 @@ export async function GET(
           role: true,
           content: true,
           createdAt: true,
+          // Surface the metadata bag so agent-mode tool traces render
+          // beneath the assistant message on reload.
+          metadata: true,
         },
       },
     },
@@ -39,12 +42,50 @@ export async function GET(
     );
   }
 
-  // Check ownership
-  if (conversation.userId !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const isOwner = conversation.userId === user.id;
+
+  // Check access: owner, same account (non-private), or shared via ChatShare
+  if (!isOwner) {
+    // Check same-account access
+    let hasAccountAccess = false;
+    if (user.accountId) {
+      const convOwner = await prisma.user.findUnique({
+        where: { id: conversation.userId },
+        select: { accountId: true },
+      });
+      if (convOwner?.accountId === user.accountId && !conversation.isPrivate) {
+        hasAccountAccess = true;
+      }
+    }
+
+    // Check ChatShare access
+    const hasShareAccess = !hasAccountAccess && await prisma.chatShare.findFirst({
+      where: {
+        conversationId: id,
+        OR: [
+          { sharedToUserId: user.id },
+          ...(user.email ? [{ sharedToEmail: user.email.toLowerCase() }] : []),
+        ],
+      },
+    });
+
+    if (!hasAccountAccess && !hasShareAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Track view for non-owner access
+    await prisma.chatView.upsert({
+      where: { userId_conversationId: { userId: user.id, conversationId: id } },
+      update: { viewedAt: new Date() },
+      create: { userId: user.id, conversationId: id },
+    }).catch(() => {}); // Non-critical
   }
 
-  return NextResponse.json({ conversation });
+  return NextResponse.json({
+    conversation,
+    isOwner,
+    readOnly: !isOwner,
+  });
 }
 
 /**
@@ -113,17 +154,29 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Allow updating archived status and title
+  // Validate mode if provided
+  const validModes = ["CHATBASE", "DIRECT"];
+  const newMode = body.mode && validModes.includes(body.mode) ? body.mode : undefined;
+
+  // Allow updating archived status, title, mode, projectId, privacy, and account sharing
   const updatedConversation = await prisma.conversation.update({
     where: { id },
     data: {
       archived: body.archived ?? conversation.archived,
       title: body.title !== undefined ? body.title : conversation.title,
+      ...(newMode ? { mode: newMode } : {}),
+      ...(body.projectId !== undefined ? { projectId: body.projectId || null } : {}),
+      ...(body.isPrivate !== undefined ? { isPrivate: body.isPrivate } : {}),
+      ...(body.sharedWithAccount !== undefined ? { sharedWithAccount: body.sharedWithAccount } : {}),
     },
     select: {
       id: true,
       archived: true,
       title: true,
+      mode: true,
+      projectId: true,
+      isPrivate: true,
+      sharedWithAccount: true,
     },
   });
 
