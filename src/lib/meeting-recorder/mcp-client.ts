@@ -74,6 +74,7 @@ export class McpClient {
   private sessionId: string | null = null;
   private nextId = 1;
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor(opts: McpClientOptions) {
     this.endpoint = opts.endpoint;
@@ -133,8 +134,29 @@ export class McpClient {
     return await res.json();
   }
 
+  /**
+   * Handshake, at most once per client even under concurrency.
+   *
+   * The in-flight promise matters: getCallDetail issues two tool calls
+   * with Promise.all, and a bare `if (this.initialized)` lets both see
+   * false and both run a full handshake — four requests to open one
+   * session, and two competing Mcp-Session-Ids. Callers after the
+   * first now await the same handshake instead of starting another.
+   *
+   * Cleared on failure so a later call can retry rather than
+   * permanently awaiting a rejected promise.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.doInitialize().catch((err) => {
+      this.initPromise = null;
+      throw err;
+    });
+    return this.initPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     const id = this.nextId++;
     const reply = await this.post({
       jsonrpc: "2.0",

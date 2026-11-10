@@ -43,6 +43,66 @@ import { McpClient, McpAuthError } from "./mcp-client";
  */
 
 export const CIRCLEBACK_MCP_ENDPOINT = "https://circleback.ai/api/mcp";
+
+/**
+ * Share one MCP session across the operations of a single scan or
+ * import.
+ *
+ * Every tool call used to construct its own McpClient, which meant a
+ * full handshake each time — initialize, notifications/initialized,
+ * then the actual call. Three HTTP requests to ask one question, and
+ * an import of twenty meetings cost eighty requests instead of
+ * forty-two. McpClient already threads Mcp-Session-Id through; nothing
+ * was reusing it.
+ *
+ * Deliberately short-lived. This is not a connection pool — it exists
+ * so the calls within one unit of work ride the same session, and
+ * expires quickly so a session the server has since dropped can't be
+ * held onto.
+ */
+const MCP_CLIENT_TTL_MS = 2 * 60 * 1000;
+
+let cachedClient: { token: string; client: McpClient; createdAt: number } | null = null;
+
+function clientFor(accessToken: string): { client: McpClient; reused: boolean } {
+  const now = Date.now();
+  if (
+    cachedClient &&
+    cachedClient.token === accessToken &&
+    now - cachedClient.createdAt < MCP_CLIENT_TTL_MS
+  ) {
+    return { client: cachedClient.client, reused: true };
+  }
+  const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
+  cachedClient = { token: accessToken, client, createdAt: now };
+  return { client, reused: false };
+}
+
+/**
+ * Call a Circleback tool on the shared session.
+ *
+ * Retries exactly once, and ONLY when the session was a reused one —
+ * a reused session can have been expired server-side, which is worth
+ * a second attempt on a fresh handshake. A failure on a brand-new
+ * session is a real error, and retrying it would double our request
+ * count against Circleback for no reason, which is the opposite of
+ * the point of this cache.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function callCirclebackTool(accessToken: string, name: string, args: Record<string, any>) {
+  const { client, reused } = clientFor(accessToken);
+  try {
+    return await client.callTool(name, args);
+  } catch (err) {
+    if (!reused) throw err;
+    // Auth failures are not session staleness — the caller's
+    // token-refresh wrapper handles those, and retrying here would
+    // just burn a second 401.
+    if (err instanceof McpAuthError) throw err;
+    cachedClient = null;
+    return await clientFor(accessToken).client.callTool(name, args);
+  }
+}
 export const CIRCLEBACK_AUTH_URL = "https://circleback.ai/api/oauth/authorize";
 export const CIRCLEBACK_TOKEN_URL = "https://circleback.ai/api/oauth/access-token";
 export const CIRCLEBACK_REGISTER_URL = "https://circleback.ai/api/oauth/register";
@@ -287,7 +347,6 @@ export const circlebackProvider: MeetingRecorderProvider = {
 
   async listCalls(accessToken: string, opts?: number | ListCallsOptions) {
     const { limit, since } = normalizeListCallsOpts(opts, 25);
-    const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
     // Circleback's SearchMeetings requires:
     //   intent: string  — semantic description of what we're after
     //   pageIndex: number — zero-based pagination
@@ -300,7 +359,7 @@ export const circlebackProvider: MeetingRecorderProvider = {
       : "All recent meetings, most recent first";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const args: Record<string, any> = { intent, pageIndex: 0, limit };
-    const result = await client.callTool("SearchMeetings", args);
+    const result = await callCirclebackTool(accessToken, "SearchMeetings", args);
     const payload = extractJsonFromMcpResult(result);
     // SearchMeetings returns a bare array; the wrapper-key branch is
     // kept for safety in case the shape ever shifts.
@@ -320,7 +379,6 @@ export const circlebackProvider: MeetingRecorderProvider = {
   },
 
   async getCallDetail(accessToken: string, callId: string): Promise<MeetingCallDetail> {
-    const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
     // Circleback's MCP schema is camelCase and requires `intent` on
     // every call (same shape we discovered on SearchMeetings).
     const readArgs = {
@@ -332,8 +390,8 @@ export const circlebackProvider: MeetingRecorderProvider = {
       meetingIds: [callId],
     };
     const [readRes, transcriptRes] = await Promise.all([
-      client.callTool("ReadMeetings", readArgs),
-      client.callTool("GetTranscriptsForMeetings", transcriptArgs),
+      callCirclebackTool(accessToken, "ReadMeetings", readArgs),
+      callCirclebackTool(accessToken, "GetTranscriptsForMeetings", transcriptArgs),
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

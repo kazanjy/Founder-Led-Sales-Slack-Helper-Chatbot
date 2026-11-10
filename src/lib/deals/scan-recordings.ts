@@ -36,6 +36,8 @@ export interface ScanSummary {
   attached: number;
   potentials: number;
   skipped: number;
+  /** Connections left alone because they were polled very recently. */
+  throttled: number;
   errors: number;
   // IDs of EXISTING deals that got a new call_summary entry attached
   // during this scan. The cron route uses this to fire one
@@ -169,8 +171,29 @@ async function postPotentialDealAlert(opts: {
  * already-processed calls are skipped via the processed_recordings
  * unique index.
  */
-export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
-  const out: ScanSummary = { userId, scanned: 0, attached: 0, potentials: 0, skipped: 0, errors: 0, attachedExistingDealIds: [] };
+export interface ScanOptions {
+  /**
+   * Leave a connection alone if it was polled more recently than this.
+   *
+   * The cron passes a value; user-initiated scans pass nothing and
+   * always hit the provider, because someone who just clicked Sync
+   * means it.
+   *
+   * This exists so how often we poll somebody else's API is a property
+   * of the connection rather than of whatever the shared cron's
+   * schedule happens to be. That cron has picked up a lot of unrelated
+   * jobs over time, and the next person who speeds it up for one of
+   * them should not silently multiply our request rate against every
+   * meeting recorder.
+   */
+  minPollIntervalMs?: number;
+}
+
+export async function scanUserRecordings(
+  userId: string,
+  opts: ScanOptions = {}
+): Promise<ScanSummary> {
+  const out: ScanSummary = { userId, scanned: 0, attached: 0, potentials: 0, skipped: 0, throttled: 0, errors: 0, attachedExistingDealIds: [] };
   const attachedSet = new Set<string>();
 
   // Scan every active recorder the user has connected — not just one.
@@ -214,6 +237,15 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   for (const conn of conns) {
     const provider = getProvider(conn.provider);
     if (!provider) continue;
+
+    if (
+      opts.minPollIntervalMs &&
+      conn.lastSyncedAt &&
+      Date.now() - conn.lastSyncedAt.getTime() < opts.minPollIntervalMs
+    ) {
+      out.throttled++;
+      continue;
+    }
 
     let calls;
     try {

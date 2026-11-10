@@ -224,6 +224,7 @@ export async function discoverDealsForUser(userId: string): Promise<DiscoverDeal
         attached: 0,
         potentials: 0,
         skipped: 0,
+        throttled: 0,
         errors: 0,
         // Required by ScanSummary — empty here since no scan ran.
         attachedExistingDealIds: [] as string[],

@@ -29,6 +29,14 @@ export const maxDuration = 300;
 
 const REANALYZE_SKIP_HOURS = 12;
 
+// Don't re-poll a recorder that was polled in the last 4 minutes.
+//
+// Sits just under the cron's 5-minute schedule, so an ordinary run
+// never skips, while an overlapping or duplicated invocation does.
+// It also means the polling rate against someone else's API stays put
+// if this cron is ever sped up for one of the other jobs on it.
+const MIN_POLL_INTERVAL_MS = 4 * 60 * 1000;
+
 export async function GET(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
   if (expected) {
@@ -50,7 +58,9 @@ export async function GET(request: NextRequest) {
   const reanalysisTargets: Array<{ userId: string; dealId: string }> = [];
   for (const c of conns) {
     try {
-      const result = await scanUserRecordings(c.userId);
+      const result = await scanUserRecordings(c.userId, {
+        minPollIntervalMs: MIN_POLL_INTERVAL_MS,
+      });
       summary.push(result);
       for (const dealId of result.attachedExistingDealIds) {
         reanalysisTargets.push({ userId: c.userId, dealId });
@@ -63,6 +73,7 @@ export async function GET(request: NextRequest) {
         attached: 0,
         potentials: 0,
         skipped: 0,
+        throttled: 0,
         errors: 1,
         attachedExistingDealIds: [] as string[],
       });
